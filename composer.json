@@ -1,0 +1,15 @@
+{
+  "name": "shostwp/digi-ai-content",
+  "description": "WordPress plugin auto-content sử dụng AI, tối ưu chuẩn SEO.",
+  "type": "wordpress-plugin",
+  "require": {
+    "php": ">=7.4",
+    "guzzlehttp/guzzle": "^7.8",
+    "google/apiclient": "^2.15"
+  },
+  "autoload": {
+    "psr-4": {
+      "DigiAiContent\\": "includes/"
+    }
+  }
+}
