@@ -20,5 +20,11 @@ class Plugin {
             Admin\GoogleAuth::init();
             Admin\Ajax::init();
         }
+
+        // Init Sync System & Cron
+        Sync\CronJob::init();
+
+        // Init Auto SEO Toolset
+        SEO\InternalLinker::init();
     }
 }

@@ -18,10 +18,20 @@ class Menu {
             'dashicons-superhero',
             65
         );
+
+        // Thêm Menu con cho phần Logs AI
+        add_submenu_page(
+            'digi-ai-content',
+            'Nhật ký Trí Tuệ AI',
+            'Tracking Logs',
+            'manage_options',
+            'digi-ai-logs',
+            [self::class, 'render_logs_page']
+        );
     }
 
     public static function enqueue_assets($hook) {
-        if ($hook !== 'toplevel_page_digi-ai-content') {
+        if ($hook !== 'toplevel_page_digi-ai-content' && $hook !== 'digi-ai_page_digi-ai-logs') {
             return;
         }
 
@@ -45,6 +55,15 @@ class Menu {
             include $view_file;
         } else {
             echo "<div class='wrap'><h2>View file not found.</h2></div>";
+        }
+    }
+
+    public static function render_logs_page() {
+        $view_file = dirname(__DIR__, 2) . '/views/logs-page.php';
+        if (file_exists($view_file)) {
+            include $view_file;
+        } else {
+            echo "<div class='wrap'><h2>Logs View file not found.</h2></div>";
         }
     }
 }

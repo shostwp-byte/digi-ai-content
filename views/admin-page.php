@@ -10,6 +10,7 @@ $redirect_uri = admin_url('admin.php?page=digi-ai-content');
 
 $openai_key = get_option('digi_openai_api_key', '');
 $gemini_key = get_option('digi_gemini_api_key', '');
+$gemini_model = get_option('digi_gemini_model', 'gemini-2.5-flash');
 $bot_token = get_option('digi_telegram_bot_token', '');
 $chat_id = get_option('digi_telegram_chat_id', '');
 
@@ -193,8 +194,17 @@ if (!$is_connected && $client_id && $client_secret) {
                             <div class="space-y-2">
                                 <label class="uk-form-label" for="gemini_api_key">Google Gemini API Key</label>
                                 <input class="uk-input" id="gemini_api_key" name="gemini_api_key" type="password" value="<?php echo esc_attr($gemini_key); ?>" placeholder="AIzaSy...">
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="uk-form-label" for="gemini_model">Phiên Bản (Model Version)</label>
+                                <select class="uk-select" id="gemini_model" name="gemini_model">
+                                    <option value="gemini-2.5-flash" <?php selected($gemini_model, 'gemini-2.5-flash'); ?>>Gemini 2.5 Flash</option>
+                                    <option value="gemini-2.5-pro" <?php selected($gemini_model, 'gemini-2.5-pro'); ?>>Gemini 2.5 Pro</option>
+                                    <option value="gemini-3.1-pro-preview" <?php selected($gemini_model, 'gemini-3.1-pro-preview'); ?>>Gemini 3.1 Pro Preview</option>
+                                </select>
                                 <div class="uk-form-help text-muted-foreground">
-                                    Sử dụng Gemini Pro để tạo nội dung cấu trúc dữ liệu nếu không muốn chạy GPT.
+                                    Dùng bản Pro hoặc Flash 2.5 tùy theo giới hạn Rate Limit quota tài khoản Google Cloud của bạn.
                                 </div>
                             </div>
                             
@@ -237,11 +247,36 @@ if (!$is_connected && $client_id && $client_secret) {
                                 <button type="submit" class="uk-btn uk-btn-primary">
                                     Lưu tài khoản Telegram
                                 </button>
-                                <button type="button" class="uk-btn uk-btn-default ml-2">
+                                <button type="button" id="btn_test_telegram" class="uk-btn uk-btn-default ml-2">
                                     Test Thử Báo Cáo
                                 </button>
                             </div>
                         </form>
+
+                        <hr class="uk-margin-medium">
+                        
+                        <div>
+                            <h3 class="text-lg font-medium">Nhật Ký Chạy Ngầm (CronJob Tracker)</h3>
+                            <p class="text-muted-foreground text-sm">
+                                Theo dõi hệ thống đọc API và gọi AI chạy nền ngầm đằng sau máy chủ đang ở công đoạn nào.
+                            </p>
+                        </div>
+                        <div class="border-border border-t mt-4 mb-4"></div>
+                        <div class="space-y-4">
+                            <?php 
+                                $last_run = get_option('digi_last_cron_run', 'Hệ thống Cronjob chưa chạy lần nào');
+                                $last_status = get_option('digi_last_cron_status', 'Không rõ');
+                            ?>
+                            <div class="uk-alert uk-alert-primary bg-blue-50/50 p-4 border">
+                                <b>Lần đồng bộ cuối:</b> <span id="cron-log-time" class="text-blue-600 font-semibold ml-2"><?php echo esc_html($last_run); ?></span><br>
+                                <b>Trạng thái:</b> <span id="cron-log-status" class="mt-1 text-sm block"><?php echo esc_html($last_status); ?></span>
+                            </div>
+                            <button type="button" id="btn_force_cron" class="uk-btn uk-btn-secondary">
+                                <uk-icon class="mr-2 size-4" icon="refresh-cw"></uk-icon>
+                                Ép Máy Chủ Chạy Đồng Bộ AI Ngay
+                            </button>
+                        </div>
+
                     </li>
 
                     <!-- TAB 4: Advanced -->
@@ -358,5 +393,75 @@ if (!$is_connected && $client_id && $client_secret) {
             });
         }
         <?php endif; ?>
+
+        // Xử lý nút Test Telegram trực tiếp (Bấm là báo cURL Test luôn)
+        const btnTestTele = document.getElementById('btn_test_telegram');
+        if (btnTestTele) {
+            btnTestTele.addEventListener('click', function() {
+                const token = document.getElementById('telegram_bot_token').value;
+                const chat = document.getElementById('telegram_chat_id').value;
+                if (!token || !chat) {
+                    UIkit.notification('Thiếu thông số. Điền đủ Bot Token và Chat ID trước!', {status: 'warning'});
+                    return;
+                }
+                
+                const oldText = btnTestTele.innerHTML;
+                btnTestTele.innerHTML = '<uk-icon icon="loader" class="uk-animation-spin mr-2 size-4"></uk-icon> Đang bắn API...';
+                btnTestTele.disabled = true;
+
+                const formData = new FormData();
+                formData.append('action', 'digi_test_telegram');
+                formData.append('telegram_bot_token', token);
+                formData.append('telegram_chat_id', chat);
+                
+                fetch(ajaxurl, { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(res => {
+                    UIkit.notification({
+                        message: res.data && res.data.message ? res.data.message : 'API đã gõ cửa Telegram cURL',
+                        status: res.success ? 'success' : 'danger',
+                        pos: 'top-center'
+                    });
+                })
+                .finally(() => {
+                    btnTestTele.innerHTML = oldText;
+                    btnTestTele.disabled = false;
+                });
+            });
+        }
+
+        // Xử lý nút Chạy Ép CronJob Debug nhanh
+        const btnForceCron = document.getElementById('btn_force_cron');
+        if (btnForceCron) {
+            btnForceCron.addEventListener('click', function() {
+                const oldText = btnForceCron.innerHTML;
+                // Cảnh báo người dùng phải kiên nhẫn đợi AI
+                btnForceCron.innerHTML = '<uk-icon icon="loader" class="uk-animation-spin mr-2 size-4"></uk-icon> Đang phân tích API và chờ OpenAI nén WebP, cần 30-90s...';
+                btnForceCron.disabled = true;
+
+                const formData = new FormData();
+                formData.append('action', 'digi_force_run_cron');
+                
+                fetch(ajaxurl, { method: 'POST', body: formData })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.success && res.data) {
+                        document.getElementById('cron-log-status').innerText = res.data.status || 'Đã xong vòng lặp hiện hành.';
+                        document.getElementById('cron-log-time').innerText = res.data.time || new Date().toLocaleString();
+                        UIkit.notification({ message: res.data.message || 'Thành công!', status: 'success', pos: 'top-center' });
+                    } else {
+                        UIkit.notification({ message: 'Lỗi Backend chưa xuất Data.', status: 'danger', pos: 'top-center' });
+                    }
+                })
+                .catch(err => {
+                    console.error("Cron Fetch Error: ", err);
+                    UIkit.notification({ message: 'Mất kết nối máy chủ API trong lúc AI đang vẽ.', status: 'danger', pos: 'top-center' });
+                })
+                .finally(() => {
+                    btnForceCron.innerHTML = oldText;
+                    btnForceCron.disabled = false;
+                });
+            });
+        }
     });
 </script>

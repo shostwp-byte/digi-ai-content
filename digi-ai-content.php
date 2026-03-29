@@ -39,3 +39,23 @@ function digi_ai_content_init() {
     }
 }
 add_action('plugins_loaded', 'digi_ai_content_init');
+
+register_activation_hook(__FILE__, 'digi_ai_content_activate');
+function digi_ai_content_activate() {
+    // Kích hoạt SQL tạo Database riêng
+    if (class_exists('DigiAiContent\Logger')) {
+        \DigiAiContent\Logger::create_table();
+    }
+
+    if (!wp_next_scheduled('digi_ai_sync_task')) {
+        wp_schedule_event(time(), 'digi_every_5_mins', 'digi_ai_sync_task');
+    }
+}
+
+register_deactivation_hook(__FILE__, 'digi_ai_content_deactivate');
+function digi_ai_content_deactivate() {
+    $timestamp = wp_next_scheduled('digi_ai_sync_task');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'digi_ai_sync_task');
+    }
+}
