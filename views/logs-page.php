@@ -41,8 +41,8 @@ $logs = \DigiAiContent\Logger::get_logs(50); // Mặc định lấy 50 dòng m�
             <table class="uk-table uk-table-divider uk-table-hover uk-table-middle mb-0">
                 <thead>
                     <tr>
-                        <th class="w-16">ID Log</th>
-                        <th class="w-40">Thời gian (MySQL)</th>
+                        <th class="w-16">ID</th>
+                        <th class="w-40">Thời gian</th>
                         <th class="w-64">Từ khoá / Nhiệm vụ</th>
                         <th class="w-32">Model</th>
                         <th class="w-32">Trạng thái</th>

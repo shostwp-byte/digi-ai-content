@@ -37,6 +37,12 @@ function digi_ai_content_init() {
         $plugin = \DigiAiContent\Plugin::get_instance();
         $plugin->init();
     }
+
+    // [BẢO MẬT HỆ THỐNG CRON] - Fallback chống liệt Cron. 
+    // Nếu người dùng không thực hiện Bước "Hủy kích hoạt" rồi "Kích hoạt" lại plugin -> Sự kiện sẽ tự động mồi lại ở đây.
+    if (!wp_next_scheduled('digi_ai_sync_task')) {
+        wp_schedule_event(time(), 'digi_every_5_mins', 'digi_ai_sync_task');
+    }
 }
 add_action('plugins_loaded', 'digi_ai_content_init');
 
